@@ -1480,6 +1480,8 @@ field, clients SHOULD reject signed exchanges served without it.
 
 # Privacy considerations
 
+## Confidentiality {#priv-confidentiality}
+
 Normally, when a client fetches `https://o1.com/resource.js`,
 `o1.com` learns that the client is interested in the resource. If
 `o1.com` signs `resource.js`, `o2.com` serves it as
@@ -1502,6 +1504,53 @@ exchange is being loaded from local disk, but when the client itself requested
 the exchange over a network it SHOULD require TLS ({{!RFC8446}}) or a
 successor transport layer, and MUST NOT accept exchanges transferred over plain
 HTTP without TLS.
+
+## Watermarking {#priv-watermarking}
+
+When a client (User A) requests a signed exchange from a publisher, the
+publisher could embed some information identifying that client into the exchange
+they return. If User A then shares the signed exchange to User B, who opens it,
+the publisher can learn that users A and B are connected. This doesn't allow the
+publisher to track the intermediate hops if User A shares the exchange to User B
+who then shares it to User C.
+
+URL query parameters are routinely used today to identify when User A shares a
+link to User B, and query parameters are more visible and easier for a browser
+to analyze than differences in content, so we don't consider watermarked request
+URLs part of the threat model for signed exchanges.
+
+We also exclude from the threat model situations where User A intends to inform
+the publisher that User B fetched their signed exchange from User A. User A can
+inform the publisher more directly, without needing to use a watermark.
+
+Several mitigations are available, none of which are clearly enough the right
+answer yet to require them in this specification:
+
+User A can reduce the risk by using a credential-less fetch to retrieve any
+signed exchanges they intend to share. This doesn't completely eliminate the
+risk, since User A probably made a previous credentialed request from the same
+source IP address, and the publisher can embed a watermark identifying those
+credentials.
+
+If, instead of allowing the publisher to select the validity-url
+({{signature-header}}) for each signature, we compute the validity-url from the
+signed request URL, User B can check that their content matches the signatures
+there. This requires publishers to include all signatures for acceptable
+versions of the content at the computed validity-url, which gives space to hide
+a signature for the IP-matched watermark if User A tries to use this method to
+detect a watermark. It probably doesn't give space to serve signatures for all
+possible watermarks to User B.
+
+User A or B could check a transparency log, as envisioned by
+{{uc-transparency}}, to detect that a publisher is watermarking their signed
+exchanges. If the transparency log includes the actual exchanges, User A could
+also use it to confuse the publisher's tracking.
+
+User A could re-fetch the header of the signed exchange, up to the start of the
+`signedHeaders` header field ({{application-signed-exchange}}), via an
+anonymizing proxy, to identify whether their copy is watermarked. If the
+publisher updates the signed exchange between the two requests, User A can retry
+the earlier one.
 
 # IANA considerations
 
@@ -2077,6 +2126,7 @@ draft-06
   private keys.
 * Define a CAA parameter to opt into certificate issuance.
 * Limit certificate lifetimes to 90 days.
+* Add a privacy consideration about watermarking.
 
 draft-05
 
